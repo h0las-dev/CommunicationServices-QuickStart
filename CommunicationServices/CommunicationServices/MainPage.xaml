@@ -7,15 +7,94 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Page.Resources>
+        <local:NullToBooleanConverter x:Key="nullToBooleanConverter" />
+    </Page.Resources>
+
     <StackPanel>
         <StackPanel>
-            <TextBox Text="Who would you like to call?" TextWrapping="Wrap" x:Name="CalleeTextBox" Margin="10,10,10,10"></TextBox>
-            <Button Content="Start Call" Click="CallButton_ClickAsync" x:Name="CallButton" Margin="10,10,10,10"></Button>
-            <Button Content="Hang Up" Click="HangupButton_Click" x:Name="HangupButton" Margin="10,10,10,10"></Button>
+            <Pivot x:Name="rootPivot">
+                <PivotItem Header="Video calling">
+
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock  Margin="10,10,10,10" 
+                                    Grid.Row="0" 
+                                    Grid.ColumnSpan="2"
+                                    Tapped="TextBlock_Tapped">
+                                <Run Text="Share this id with your friend:"/>
+                                <Run TextDecorations="Underline" FontWeight="Bold" Foreground="#4869D6" x:Name="YourNickTextBlock"/>
+                        </TextBlock>
+
+                        <StackPanel Orientation="Horizontal" 
+                                    Grid.Row="1" 
+                                    Grid.ColumnSpan="2">
+                            <TextBox PlaceholderText="Who would you like to call?" TextWrapping="Wrap" x:Name="CalleeTextBox" Margin="10,10,10,10"/>
+                            <Button Content="Start Call" Click="CallButton_ClickAsync" x:Name="CallButton" Margin="10,10,10,10"
+                                    IsEnabled="{Binding Text, Converter={StaticResource nullToBooleanConverter}, ElementName=CalleeTextBox}"/>
+                            <Button Content="Hang Up" Click="HangupButton_Click" x:Name="HangupButton" Margin="10,10,10,10"
+                                     IsEnabled="{Binding Text, Converter={StaticResource nullToBooleanConverter}, ElementName=CalleeTextBox}"/>
+                        </StackPanel>
+
+                        <MediaElement x:Name="RemoteVideo" AutoPlay="True" Stretch="UniformToFill" Grid.Row="2" Grid.Column="0"/>
+                        <MediaElement x:Name="LocalVideo" AutoPlay="True"  Stretch="UniformToFill" HorizontalAlignment="Right"  VerticalAlignment="Bottom"
+                                      Grid.Row="2" Grid.Column="1"/>
+                    </Grid>
+   
+                </PivotItem>
+
+                <PivotItem Header="Speech generator">
+
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+
+                        <RichEditBox x:Name="SpeechEditBox" Margin="10,10,10,10" Grid.Row="0" Height="300"
+                                     PlaceholderText="Enter you text for speech..."/>
+                        <Button Content="Speech" Click="SpeechButton_Click"  Margin="10,10,10,10" Grid.Row="1"/>
+                    </Grid>
+                    
+                </PivotItem>
+                <PivotItem Header="Text analytics">
+
+
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition/>
+
+                            <RowDefinition/>
+                            <RowDefinition/>
+                            <RowDefinition/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+
+                        <TextBox Name="PhraseTextBox" PlaceholderText="Enter the phrase..." Grid.Row="0" Margin="10,10,10,10"/>
+                        <Button Content="Recognize" Click="RecognizeButton_Click"  Margin="10,10,10,10" Grid.Row="1"
+                                 IsEnabled="{Binding Text, Converter={StaticResource nullToBooleanConverter}, ElementName=PhraseTextBox}"/>
+
+                        <TextBlock Margin="10,10,10,0" Name="SentimentTextBlock" Grid.Row="2"/>
+                        <TextBlock  Margin="10,0,10,0" Name="PositiveTextBlock" Grid.Row="3"/>
+                        <TextBlock Margin="10,0,10,0" Name="NegativeTextBlock" Grid.Row="4"/>
+                        <TextBlock Margin="10,0,10,0" Name="NeutralTextBlock" Grid.Row="5"/>
+                    </Grid>
+
+                </PivotItem>
+            </Pivot>
+            
         </StackPanel>
-        <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
-            <MediaElement x:Name="RemoteVideo" AutoPlay="True" Stretch="UniformToFill"/>
-            <MediaElement x:Name="LocalVideo" AutoPlay="True"  Stretch="UniformToFill" HorizontalAlignment="Right"  VerticalAlignment="Bottom"/>
-        </StackPanel>
+
     </StackPanel>
+    
+    
 </Page>

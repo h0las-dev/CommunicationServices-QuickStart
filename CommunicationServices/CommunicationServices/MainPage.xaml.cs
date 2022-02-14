@@ -7,6 +7,11 @@ using Azure.Communication.Calling;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Microsoft.CognitiveServices.Speech;
+using Azure;
+using Azure.AI.TextAnalytics;
+using Azure.Communication.Identity;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace CallingQuickstart
 {
@@ -15,9 +20,44 @@ namespace CallingQuickstart
     /// </summary>
     public sealed partial class MainPage : Page
     {
+        private SpeechConfig config = SpeechConfig.FromSubscription("5a455886966742fdb92e913f72845c00", "eastus");
+        private AzureKeyCredential azureSubscriptionKey = new AzureKeyCredential("9b4efa36752e43e88eedcf7e7e4894c4");
+        private Uri endpoint = new Uri("https://emotions-test1.cognitiveservices.azure.com/");
+        private string videoCallingToken;
+        private string videoCallingId;
+
+        CallClient callClient;
+        CallAgent callAgent;
+        Call call;
+        DeviceManager deviceManager;
+        LocalVideoStream[] localVideoStream;
+        Dictionary<String, RemoteParticipant> remoteParticipantDictionary;
+
         public MainPage()
         {
             this.InitializeComponent();
+
+            this.Loaded += MainPage_Loaded;
+
+        }
+
+        private async void MainPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            var connectionString = "endpoint=https://videocalling-test.communication.azure.com/;accesskey=epRWpXC+VaYjc6izaVNkcA4IiFKkNMkhIffhqHvQsN9Bnz69n349PWWJMDYFWT5fA7yVAXjrMl+slnH1Lp4pcQ==";
+            var client = new CommunicationIdentityClient(connectionString);
+
+            var identityResponse = await client.CreateUserAsync();
+            var identity = identityResponse.Value;
+
+            // Issue an access token with the "voip" scope for an identity
+            var tokenResponse = await client.GetTokenAsync(identity, scopes: new[] { CommunicationTokenScope.VoIP });
+
+            // Get the token from the response
+            videoCallingToken = tokenResponse.Value.Token;
+
+            videoCallingId = identity.Id;
+            YourNickTextBlock.Text = identity.Id;
+
             this.InitCallAgentAndDeviceManager();
             remoteParticipantDictionary = new Dictionary<string, RemoteParticipant>();
         }
@@ -27,7 +67,7 @@ namespace CallingQuickstart
             CallClient callClient = new CallClient();
             deviceManager = await callClient.GetDeviceManager();
 
-            CommunicationTokenCredential token_credential = new CommunicationTokenCredential("eyJhbGciOiJSUzI1NiIsImtpZCI6IjEwNCIsIng1dCI6IlJDM0NPdTV6UENIWlVKaVBlclM0SUl4Szh3ZyIsInR5cCI6IkpXVCJ9.eyJza3lwZWlkIjoiYWNzOmJhOWRiZDA0LWNkNTgtNDM4YS05YWEzLWVmMjk4Yzg3MTEyOV8wMDAwMDAwZi04MzgwLTk0MmItOTJmZC04YjNhMGQwMDI0ZGUiLCJzY3AiOjE3OTIsImNzaSI6IjE2NDQ0OTYzNTEiLCJleHAiOjE2NDQ1ODI3NTEsImFjc1Njb3BlIjoidm9pcCIsInJlc291cmNlSWQiOiJiYTlkYmQwNC1jZDU4LTQzOGEtOWFhMy1lZjI5OGM4NzExMjkiLCJpYXQiOjE2NDQ0OTYzNTF9.AYUKd4xBUVeAOfOpRcwJj2SSY0cRxp1HdL9WXc2cwThdv7C44cqozgTuUS_o9BWFRkXRSswg9CmbbMRqMLSIlD4JIgA___aF8UVbe7QwNkd8ULG_nOys7sEfjwaqtMOsDG6vx1L6GhFZVj_lIYBtgbmWH_BAuuwiY-8aCKBY5NdqHvBMNrv7tK00U1dcWTUISWZatFybr6SHDIawQgtLxHCa3m3gyz3miTolQNcqYSA18TWUlT9Cd2wD6iqnfwMOEAJTsWBUA7VsVxcuRVbr3Rhp_6jK5GniO5gwlLjRyOqbpg-oZEFFTdTP8yl-mVr-9Q1IRQ7AdV8GMcKWKh6bsw");
+            CommunicationTokenCredential token_credential = new CommunicationTokenCredential(videoCallingToken);
 
             CallAgentOptions callAgentOptions = new CallAgentOptions()
             {
@@ -167,11 +207,43 @@ namespace CallingQuickstart
             }
         }
 
-        CallClient callClient;
-        CallAgent callAgent;
-        Call call;
-        DeviceManager deviceManager;
-        LocalVideoStream[] localVideoStream;
-        Dictionary<String, RemoteParticipant> remoteParticipantDictionary;
+        private async void SpeechButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Creates a speech synthesizer using the default speaker as audio output.
+            using (var synthesizer = new SpeechSynthesizer(config))
+            {
+                SpeechEditBox.TextDocument.GetText(Windows.UI.Text.TextGetOptions.None, out var text);
+   
+                using (var result = await synthesizer.SpeakTextAsync(text))
+                {
+                }
+            }
+        }
+
+        private async void RecognizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            var client = new TextAnalyticsClient(endpoint, azureSubscriptionKey);
+            var inputText = PhraseTextBox.Text;
+            var analyzeResponse = client.AnalyzeSentiment(inputText);
+            var documentSentiment = analyzeResponse.Value;
+
+            SentimentTextBlock.Text = $"Sentiment: {documentSentiment.Sentiment.ToString()}";
+            PositiveTextBlock.Text = $"Positive: {documentSentiment.ConfidenceScores.Positive.ToString("0.00")}";
+            NegativeTextBlock.Text = $"Negative: {documentSentiment.ConfidenceScores.Negative.ToString("0.00")}";
+            NeutralTextBlock.Text = $"Neutral: {documentSentiment.ConfidenceScores.Neutral.ToString("0.00")}";
+        }
+
+        private void TextBlock_Tapped(object sender, Windows.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            DataPackage dataPackage = new DataPackage();
+            // copy 
+            dataPackage.RequestedOperation = DataPackageOperation.Copy;
+            // or cut
+            dataPackage.RequestedOperation = DataPackageOperation.Move;
+
+            dataPackage.SetText(videoCallingId);
+
+            Clipboard.SetContent(dataPackage);
+        }
     }
 }
